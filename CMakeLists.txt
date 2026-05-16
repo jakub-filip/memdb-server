@@ -8,4 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(memdb-server src/main.cpp
         src/Application.cpp
-        src/Application.hpp)
+        src/Application.hpp
+        src/Server.cpp
+        src/Server.hpp)
+
+target_link_libraries(memdb-server PRIVATE ws2_32)
