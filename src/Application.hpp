@@ -1,6 +1,7 @@
 #ifndef MEMDB_SERVER_APPLICATION_HPP
 #define MEMDB_SERVER_APPLICATION_HPP
 
+#include "Networking.hpp"
 #include "Server.hpp"
 
 #include <thread>
@@ -13,11 +14,9 @@ namespace memdb::server
         void run();
 
     private:
+        Networking networking_;
         Server server_;
         std::thread serverThread_;
-
-        void initializeNetworking();
-        void shutdownNetworking() noexcept;
     };
 }
 
