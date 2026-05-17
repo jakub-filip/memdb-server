@@ -12,6 +12,10 @@ add_executable(memdb-server src/main.cpp
         src/Server.cpp
         src/Server.hpp
         src/Networking.cpp
-        src/Networking.hpp)
+        src/Networking.hpp
+        src/ServerSocket.cpp
+        src/ServerSocket.hpp
+        src/ClientSocket.cpp
+        src/ClientSocket.hpp)
 
 target_link_libraries(memdb-server PRIVATE ws2_32)

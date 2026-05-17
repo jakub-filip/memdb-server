@@ -6,42 +6,15 @@
 
 namespace memdb::server
 {
+    Server::~Server()
+    {
+        cleanup();
+    }
+
     void Server::start()
     {
-        serverSocket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-        if (serverSocket_ == INVALID_SOCKET)
-        {
-            throw std::runtime_error("Socket creation failed.");
-        }
-
-        u_long socketMode = 1;
-
-        if (ioctlsocket(serverSocket_, FIONBIO, &socketMode) != NO_ERROR)
-        {
-            cleanup();
-
-            throw std::runtime_error("ioctlsocket failed.");
-        }
-
-        SOCKADDR_IN serverAddress{};
-        serverAddress.sin_family = AF_INET;
-        serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-        serverAddress.sin_port = htons(9000);
-
-        if (bind(serverSocket_, reinterpret_cast<const SOCKADDR*>(&serverAddress), sizeof(serverAddress)) == SOCKET_ERROR)
-        {
-            cleanup();
-
-            throw std::runtime_error("Bind failed.");
-        }
-
-        if (listen(serverSocket_, 50) == SOCKET_ERROR)
-        {
-            cleanup();
-
-            throw std::runtime_error("Listen failed.");
-        }
+        serverSocket_.bind("127.0.0.1", 9000);
+        serverSocket_.listen(100);
     }
 
     void Server::run()
@@ -50,18 +23,16 @@ namespace memdb::server
 
         while (running_)
         {
-            SOCKET newClientSocket = accept(serverSocket_, nullptr, nullptr);
-
-            if (newClientSocket != INVALID_SOCKET)
+            if (std::optional<ClientSocket> newClientSocket = serverSocket_.accept())
             {
-                clientSockets_.push_back(newClientSocket);
+                clientSockets_.emplace_back(std::move(*newClientSocket));
             }
 
             for (auto clientSocketIt = clientSockets_.begin(); clientSocketIt != clientSockets_.end();)
             {
                 char buffer[1024]{};
 
-                int recvResult = recv(*clientSocketIt, buffer, 1024, 0);
+                int recvResult = recv(clientSocketIt->getSocket(), buffer, 1024, 0);
 
                 if (recvResult > 0)
                 {
@@ -70,14 +41,14 @@ namespace memdb::server
                 }
                 else if (recvResult == 0)
                 {
-                    closesocket(*clientSocketIt);
+                    closesocket(clientSocketIt->getSocket());
                     clientSocketIt = clientSockets_.erase(clientSocketIt);
                 }
                 else
                 {
                     if (WSAGetLastError() != WSAEWOULDBLOCK)
                     {
-                        closesocket(*clientSocketIt);
+                        closesocket(clientSocketIt->getSocket());
                         clientSocketIt = clientSockets_.erase(clientSocketIt);
                     }
                     else
@@ -98,18 +69,11 @@ namespace memdb::server
 
     void Server::cleanup() noexcept
     {
-        for (SOCKET& clientSocket : clientSockets_)
+        for (ClientSocket& clientSocket : clientSockets_)
         {
-            closesocket(clientSocket);
+            closesocket(clientSocket.getSocket());
         }
 
         clientSockets_.clear();
-
-        closesocket(serverSocket_);
-    }
-
-    Server::~Server()
-    {
-        cleanup();
     }
 }
